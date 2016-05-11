@@ -28,10 +28,24 @@ class AbetObject:
     errorMessage= ''
     isGood = True
     def __init__(self):
-        pass
-    
+        self.Reset()
+        
+    # Resets the data
+    def Reset(self):
+        self.filename = ''
+        self.dataPath = ''
+        self.maxResponseCount = 0
+        self.maxRTCount = 0
+        self.maxCollectCount = 0
+        self.maxScreenpokeCount = 0
+        self.maxFrontbeamCount = 0
+        self.maxBackbeamCount = 0
+        self.maxRewardpokeCount = 0
+        self.rawData = []
+        
     # Loads the raw csv file into memory
     def ReadFile(self,filename, delim = ',', quote ='"'):
+        self.Reset()
         fileObject = open(filename, 'rb')
         if fileObject.closed:
             return        
@@ -63,15 +77,23 @@ class AbetObject:
         
     def ParseFile(self):
         # First pass through the data to collect largest number of collected data
-        # This is needed to calculate the correct offset when extracting individual data points
+        # This is needed to calculate the correct offset when extracting individual data rows
         for row in self.rawData:
-            self.maxResponseCount = max(self.maxResponseCount,int(float(row[self.columnNames['ResponseCount']])))
-            self.maxRTCount = max(self.maxRTCount,int(float(row[self.columnNames['RTCount']])))
-            self.maxCollectCount = max(self.maxCollectCount,int(float(row[self.columnNames['CollectCount']])))
-            self.maxScreenpokeCount = max(self.maxScreenpokeCount,int(float(row[self.columnNames['ScreenPokeCount']])))
-            self.maxFrontbeamCount = max(self.maxFrontbeamCount,int(float(row[self.columnNames['FrontbeamCount']])))
-            self.maxBackbeamCount = max(self.maxBackbeamCount,int(float(row[self.columnNames['BackbeamCount']])))
-            self.maxRewardpokeCount = max(self.maxRewardpokeCount,int(float(row[self.columnNames['RewardTrayCount']])))
+            rowResponseCount = row[self.columnNames['ResponseCount']].replace(" ", "")
+            rowRTCount = row[self.columnNames['RTCount']].replace(" ", "")
+            rowCollectCount = row[self.columnNames['CollectCount']].replace(" ", "")
+            rowScreenpokeCount = row[self.columnNames['ScreenPokeCount']].replace(" ", "")
+            rowFrontbeamCount = row[self.columnNames['FrontbeamCount']].replace(" ", "")
+            rowBackbeamCount = row[self.columnNames['BackbeamCount']].replace(" ", "")
+            rowRewardpokeCount = row[self.columnNames['RewardTrayCount']].replace(" ", "")
+            
+            self.maxResponseCount = max(self.maxResponseCount,int(float(rowResponseCount)))
+            self.maxRTCount = max(self.maxRTCount,int(float(rowRTCount)))
+            self.maxCollectCount = max(self.maxCollectCount,int(float(rowCollectCount)))
+            self.maxScreenpokeCount = max(self.maxScreenpokeCount,int(float(rowScreenpokeCount)))
+            self.maxFrontbeamCount = max(self.maxFrontbeamCount,int(float(rowFrontbeamCount)))
+            self.maxBackbeamCount = max(self.maxBackbeamCount,int(float(rowBackbeamCount)))
+            self.maxRewardpokeCount = max(self.maxRewardpokeCount,int(float(rowRewardpokeCount)))
             
         # Second pass through the data. This collects the individual data and exports the results to a file
         for row in self.rawData:
@@ -82,50 +104,80 @@ class AbetObject:
             
             # Assign default numbers in case this number is not filled in            
             if len(row[2]) == 0:
-                animalID = 999
+                animalID = '999'
             else:
-                animalID = int(float(row[2]))
-                
+                animalID = row[2]
             if len(row[3]) == 0:
-                groupID = 999
+                groupID = '999'
             else:
-                groupID = int(float(row[3]))
+                groupID = row[3]
             
             # Count indivual data points
-            responseCount = int(float(row[self.columnNames['ResponseCount']]))
-            rtCount = int(float(row[self.columnNames['RTCount']]))
-            collectCount = int(float(row[self.columnNames['CollectCount']]))
-            screenpokeCount = int(float(row[self.columnNames['ScreenPokeCount']]))
-            frontbeamCount = int(float(row[self.columnNames['FrontbeamCount']]))
-            backbeamCount = int(float(row[self.columnNames['BackbeamCount']]))
-            rewardpokeCount = int(float(row[self.columnNames['RewardTrayCount']]))
+            responseCount = int(float(row[self.columnNames['ResponseCount']].replace(" ", "")))
+            rtCount = int(float(row[self.columnNames['RTCount']].replace(" ", "")))
+            collectCount = int(float(row[self.columnNames['CollectCount']].replace(" ", "")))
+            screenpokeCount = int(float(row[self.columnNames['ScreenPokeCount']].replace(" ", "")))
+            frontbeamCount = int(float(row[self.columnNames['FrontbeamCount']].replace(" ", "")))
+            backbeamCount = int(float(row[self.columnNames['BackbeamCount']].replace(" ", "")))
+            rewardpokeCount = int(float(row[self.columnNames['RewardTrayCount']].replace(" ", "")))
             
             # Consistency check, the number of responses should equal the number of reaction times
+            # If no response is registered, the session is skipped
             if responseCount != rtCount:
                 print "Mismatch between detected responses and detected reaction times"
                 print scheduleDate + ": " + scheduleName +  " " + str(animalID) + ", " + str(groupID)
-            # Collect individual data points in to separate lists
+                            
+            if responseCount == 0:
+                continue
+            
+            # Collect response data in separate lists
             responseOffset = 11
-            responseTimestamps = [float(row[i]) for i in range(responseOffset,responseOffset+responseCount)]
-            responseEvaluations= [int(float(row[i])) for i in range(responseOffset+ self.maxResponseCount*1, responseOffset+self.maxResponseCount*1 + responseCount)]
-            correctPositions   = [int(float(row[i])) for i in range(responseOffset+ self.maxResponseCount*2, responseOffset+self.maxResponseCount*2 + responseCount)]
-            targetIndex        = [int(float(row[i])) for i in range(responseOffset+ self.maxResponseCount*3, responseOffset+self.maxResponseCount*3 + responseCount)]
-            distractorIndex    = [int(float(row[i])) for i in range(responseOffset+ self.maxResponseCount*4, responseOffset+self.maxResponseCount*4 + responseCount)]
-            correctionTrial    = [int(float(row[i])) for i in range(responseOffset+ self.maxResponseCount*5, responseOffset+self.maxResponseCount*5 + responseCount)]
+            try:
+                responseTimestamps = [float(row[i]) for i in range(responseOffset,responseOffset+responseCount)]
+                responseEvaluations= [int(float(row[i])) for i in range(responseOffset+ self.maxResponseCount*1, responseOffset+self.maxResponseCount*1 + responseCount)]
+                correctPositions   = [int(float(row[i])) for i in range(responseOffset+ self.maxResponseCount*2, responseOffset+self.maxResponseCount*2 + responseCount)]
+                targetIndex        = [int(float(row[i])) for i in range(responseOffset+ self.maxResponseCount*3, responseOffset+self.maxResponseCount*3 + responseCount)]
+                distractorIndex    = [int(float(row[i])) for i in range(responseOffset+ self.maxResponseCount*4, responseOffset+self.maxResponseCount*4 + responseCount)]
+                correctionTrial    = [int(float(row[i])) for i in range(responseOffset+ self.maxResponseCount*5, responseOffset+self.maxResponseCount*5 + responseCount)]
+            except ValueError:
+                print animalID
+                print groupID
+                print scheduleName
+                print scheduleDate
+                continue
             
             rtOffset = responseOffset + 6*self.maxResponseCount
             reactionTimes = [float(row[i]) for i in range(rtOffset,rtOffset + rtCount)]
             
+            # Collect additional data in separate lists. If...else checks handles situtations
+            # in which there is no data recorded for a specific measure
             collectOffset = rtOffset + self.maxRTCount
-            collectTimes =[float(row[i]) for i in range(collectOffset, collectOffset + collectCount)]
+            if self.maxCollectCount == 0:
+                collectOffset = collectOffset + 1
+                collectTimes = []
+            else:
+                collectTimes =[float(row[i]) for i in range(collectOffset, collectOffset + collectCount)]
             
             screenpokeOffset = collectOffset + self.maxCollectCount
-            screenpokeTimes = [float(row[i]) for i in range(screenpokeOffset, screenpokeOffset + screenpokeCount)]
+            if self.maxScreenpokeCount == 0:
+                screenpokeOffset = screenpokeOffset + 1
+                screenpokeTimes = []
+            else:
+                screenpokeTimes = [float(row[i]) for i in range(screenpokeOffset, screenpokeOffset + screenpokeCount)]
             
             frontbeamOffset = screenpokeOffset + self.maxScreenpokeCount
-            frontbeamTimes = [float(row[i]) for i in range(frontbeamOffset, frontbeamOffset + frontbeamCount)]
+            if self.maxFrontbeamCount == 0:
+                frontbeamTimes = []
+                frontbeamOffset = frontbeamOffset + 1
+            else:
+                frontbeamTimes = [float(row[i]) for i in range(frontbeamOffset, frontbeamOffset + frontbeamCount)]
+            
             backbeamOffset = frontbeamOffset + self.maxFrontbeamCount
-            backbeamTimes  = [float(row[i]) for i in range(backbeamOffset, backbeamOffset + backbeamCount)]
+            if self.maxBackbeamCount == 0:
+                backbeamOffset = backbeamOffset + 1
+                backbeamTimes = []
+            else:
+                backbeamTimes  = [float(row[i]) for i in range(backbeamOffset, backbeamOffset + backbeamCount)]
             
             rewardpokeOffset = backbeamOffset + self.maxBackbeamCount
             rewardpokeTimes = [float(row[i]) for i in range(rewardpokeOffset, rewardpokeOffset + rewardpokeCount)]
@@ -168,14 +220,14 @@ class AbetObject:
                 isiStart = responseTimestamps[i-1] + rewardCollectionTimes[i]
                 isiEnd   = responseTimestamps[i] - reactionTimes[i]
                 
-                isiScreenpokeCount[i] = sum(1 for i in range(0,screenpokeCount) if screenpokeTimes[i] > isiStart and screenpokeTimes[i] < isiEnd)
+                isiScreenpokeCount[i] = sum(1 for i in range(0,screenpokeCount) if screenpokeTimes[i] > isiStart and screenpokeTimes[i] < isiEnd)               
                 isiFrontbeamCount[i] = sum(1 for i in range(0,frontbeamCount) if frontbeamTimes[i] > isiStart and frontbeamTimes[i] < isiEnd)
                 isiBackbeamCount[i] = sum(1 for i in range(0,backbeamCount) if backbeamTimes[i] > isiStart and backbeamTimes[i] < isiEnd)
                 isiRewardpokeCount[i] = sum(1 for i in range(0,rewardpokeCount) if rewardpokeTimes[i] > isiStart and rewardpokeTimes[i] < isiEnd)
                 
             
             # Save the result to a file
-            outputPath = self.dataPath + '\\' + scheduleName + '\\' + str(groupID) + '\\' + str(animalID)
+            outputPath = self.dataPath + '\\' + scheduleName + '\\' + groupID + '\\' + animalID
             if not os.path.exists(outputPath):
                 os.makedirs(outputPath)       
             outputFile = outputPath + '\\' + scheduleDate + '.csv'

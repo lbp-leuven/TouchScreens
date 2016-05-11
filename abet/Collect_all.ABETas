@@ -429,8 +429,8 @@
         <MeasureLogicNode>
           <XMLVersion>6</XMLVersion>
           <_Type>Expression</_Type>
-          <_Name>_Image_Touched</_Name>
-          <_Special>None</_Special>
+          <_Name>Background</_Name>
+          <_Special>GridTouch</_Special>
           <_SubItem>FALSE</_SubItem>
         </MeasureLogicNode>
       </MeasureLogicNode>
